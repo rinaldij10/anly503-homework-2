@@ -1,0 +1,260 @@
+---
+jupyter: python3
+#title: "Lorem ipsum dolor sit amet consectetur adipiscing"
+author:
+  - name: Jordan Rinaldi
+    affiliations:
+      - name: Georgetown University        
+    #orcid: 0000-0001-6697-2724
+#date: "`r Sys.Date()`"
+format:
+    html:
+        toc: true
+        embed-resources: true
+        theme: default
+        code-copy: true
+        code-line-numbers: true
+        number-sections: true
+        highlight-style: github
+---
+
+# Exploratory Data Analysis
+## Jordan Rinaldi
+
+### Data Summary
+
+Using the medical-data-description pdf file, we are able to gain insights into the different datasets. These datasets examine the presence and severity of thrombosis in hospital patients. Thrombosis is a complication in collagen diseases, and one of the leading causes of death in these types of cases. The ultimate goal is to use medical data such as the datasets that will be used in this project to detect the presence of thrombosis in patients before the complications worsen. 
+
+Looking more closely at the datasets themselves, there are three main tables. The first table contains basic information about each patient, with a unique row for each individual patient. It contains information about them such as their sex, birthday, input date, admission status, and diagnosis.
+
+The second table contains information about any special tests that were conducted on patients. Since some patients did not undergo any special tests, there are not necessarily all patients present in this dataset. This dataset also contains a severity indicator for thrombosis in the patient, ranging from 0 (negative) to 2 (positive and very severe). 
+
+Finally, the third table contains information about all of the laboratory examinations conducted on patients. There can be multiple rows for the same patient in each dataset. 
+
+### Initial Questions
+
+There are a few questions that we would like to explore during this exploratory data analysis. I know next to nothing about what the majority of the variables in the datasets are, but some that I recognize are related to cells within the bloodstream, such as red blood cells, white blood cells, and platelets. The first question that I would like to investigate is if there is a relationship between blood cell levels and the degree of thrombosis. The next area that I wish to look at is how immunoglobin levels are related to diagnosis and thrombosis severity. For that, I intend to examine some boxplots to determine the spread and variance of immunoglobin classifications separated by thrombosis severity level. The last thing that I wish to explore is the C3 and C4 variables, which are measures of the effectiveness of treatment. I want to see if the values for the C3 and C4 proteins are different for patients that were admitted or not. These are some of the questions that I hope to learn more about during this exploratory data analysis.
+
+### Data Munging
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+```
+
+```{python}
+# load datasets
+dfA = pd.read_csv('./data/TSUMOTO_A.CSV', encoding='unicode_escape')
+dfB = pd.read_csv('./data/TSUMOTO_B.CSV', encoding='unicode_escape')
+dfC = pd.read_csv('./data/TSUMOTO_C.CSV',
+                  encoding='unicode_escape', error_bad_lines=False)
+```
+
+```{python}
+# join tables
+df = dfA.merge(dfB, on='ID', how='left')
+df = df.merge(dfC, on='ID', how='left')
+
+# after joining the tables, there will now be one row per laboratory examination, not necessarily one row per patient id
+```
+
+```{python}
+# modify column names so everything is lowercase and one string
+df.columns = df.columns.str.lower()
+df = df.rename(columns={'first date': 'first_date', 'examination date': 'exam_date',
+               'acl igg': 'acl_igg', 'acl igm': 'acl_igm', 'ana pattern': 'ana_pattern', 'acl iga': 'acl_iga'})
+df.columns
+```
+
+### Exploratory Analysis
+
+#### Part 0
+
+```{python}
+print(df.shape)
+print(df.dtypes)
+print(df.isna().sum())
+```
+
+#### Part 1
+
+```{python}
+# this code cell creates a subset of the original dataframe, showing blood cell values from each laboratory examination
+# create dataset with selected columns
+df_corr = df[['thrombosis', 'glu', 'wbc', 'rbc', 'hgb', 'hct', 'plt']]
+
+# convert all columns to numeric
+df_corr['glu'] = pd.to_numeric(df_corr['glu'], errors='coerce')
+df_corr['wbc'] = pd.to_numeric(df_corr['wbc'], errors='coerce')
+df_corr['rbc'] = pd.to_numeric(df_corr['rbc'], errors='coerce')
+df_corr['hgb'] = pd.to_numeric(df_corr['hgb'], errors='coerce')
+df_corr['hct'] = pd.to_numeric(df_corr['hct'], errors='coerce')
+df_corr['plt'] = pd.to_numeric(df_corr['plt'], errors='coerce')
+
+# for this portion of the analysis, I chose to remove all rows that contained an 'NaN' value for 'thrombosis', as it will mess with the correlation plots.
+df_corr = df_corr[df_corr['thrombosis'].notna()]
+
+# rename columns for output consistency
+df_corr = df_corr.rename(columns={'thrombosis': 'Thrombosis', 'glu': 'Blood Glucose', 'wbc': 'White Blood Cell',
+               'rbc': 'Red Blood Cell', 'hgb': 'Hemoglobin', 'hct': 'Hematoclit', 'plt': 'Platelet'})
+```
+
+```{python}
+print(df_corr.shape)
+print(df_corr['Thrombosis'].value_counts())
+print(df_corr.isna().sum())
+```
+
+```{python}
+df_corr.corr()  # create correlation matrix
+```
+
+```{python}
+sns.set_style("darkgrid") #set theme
+sns.color_palette("Set2")
+plot1 = sns.pairplot(df_corr, kind="scatter") #create pairplot using seaborn
+plot1.fig.suptitle('Correlation Plot of Thrombosis Indicator with Various Blood Counts', y=0.99, size=20) #add title
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.97)
+#plt.savefig('plot-01.png') #save image to move to Results.html, commented out after running the code one time
+plt.show()
+```
+
+```{python}
+sns.set_style("darkgrid")  # set theme
+# create pairplot using seaborn, add 'Thrombosis' column for color
+plot2 = sns.pairplot(df_corr, kind="scatter", hue='Thrombosis')
+plot2.fig.suptitle('Correlation Plot of Thrombosis Indicator with Various Blood Counts:\nColored by Degree of Thrombosis',
+                   y=0.99, size=20)  # add figure title
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.95)
+#plt.savefig('plot-02.png')  # save image to move to Results.html, commented out after running the code one time
+plt.show()
+
+
+```
+
+#### Part 2
+
+```{python}
+df_ig = df[['thrombosis','igg','iga','igm','acl_igg','acl_iga','acl_igm']]
+
+print(df_ig.shape)
+
+df_ig['igg'] = pd.to_numeric(df_ig['igg'], errors='coerce')
+df_ig['iga'] = pd.to_numeric(df_ig['iga'], errors='coerce')
+df_ig['igm'] = pd.to_numeric(df_ig['igm'], errors='coerce')
+
+
+print(df_ig['thrombosis'].value_counts())
+print(df_ig.isna().sum())
+df_ig = df_ig[df_ig['thrombosis'].notna()]
+df_ig['thrombosis'] = df_ig['thrombosis'].astype('int')
+
+print(df_ig.shape)
+print(df_ig.isna().sum())
+```
+
+```{python}
+sns.catplot(data=df_ig, x="thrombosis", y="acl_igg", kind="box")
+sns.catplot(data=df_ig, x="thrombosis", y="acl_iga", kind="box")
+sns.catplot(data=df_ig, x="thrombosis", y="acl_igm", kind="box")
+```
+
+```{python}
+df_ig = df_ig[df_ig['acl_igg'] < 25]
+df_ig = df_ig[df_ig['acl_iga'] < 100]
+df_ig = df_ig[df_ig['acl_igm'] < 25]
+print(df_ig.shape)
+
+df_ig = df_ig.rename(columns={'thrombosis': 'Thrombosis Degree', 'acl_igg': 'Anti-Cardiolipin Antibody (Immunoglobin G)',
+                     'acl_iga': 'Anti-Cardiolipin Antibody (Immunoglobin A)', 'acl_igm': 'Anti-Cardiolipin Antibody (Immunoglobin M)'})
+```
+
+```{python}
+sns.set_style("darkgrid")  # set theme
+
+plot3 = sns.catplot(data=df_ig, x="Thrombosis Degree", y="Anti-Cardiolipin Antibody (Immunoglobin G)", kind="box", palette='Set3')
+plot3.fig.suptitle('Immunoglobin G Count by Thrombosis Severity Degree',y=0.99,size=13)
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.95)
+#plt.savefig('plot-03.png') # save image to move to Results.html, commented out after running the code one time
+
+plot4 = sns.catplot(data=df_ig, x="Thrombosis Degree", y="Anti-Cardiolipin Antibody (Immunoglobin A)", kind="box", palette='Set3')
+plot4.fig.suptitle('Immunoglobin A Count by Thrombosis Severity Degree',y=0.99,size=13)
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.95)
+#plt.savefig('plot-04.png') # save image to move to Results.html, commented out after running the code one time
+
+plot5 = sns.catplot(data=df_ig, x="Thrombosis Degree", y="Anti-Cardiolipin Antibody (Immunoglobin M)", kind="box", palette='Set3')
+plot5.fig.suptitle('Immunoglobin M Count by Thrombosis Severity Degree',y=0.99,size=13)
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.95)
+#plt.savefig('plot-05.png') # save image to move to Results.html, commented out after running the code one time
+```
+
+#### Part 3
+
+```{python}
+# only keeps rows in final dataframe with + or - as the value for 'admission'
+df_part3 = df[df['admission'].isin(['+', '-'])]
+
+# checks for duplicate ids in tsumoto_b.csv file
+df_check = dfB[dfB.duplicated(['ID'], keep=False)]
+print(df_check.shape)
+
+#convert numeric columns from object to numeric
+df_part3['c3'] = pd.to_numeric(df_part3['c3'], errors='coerce')
+df_part3['c4'] = pd.to_numeric(df_part3['c4'], errors='coerce')
+
+#rename columns to help with axis text formatting
+df_part3 = df_part3.rename(columns={'admission': 'Admission Status',
+                           'c3': 'C3 Protein Level (mg/dL)', 'c4': 'C4 Protein Level (mg/dL)'})
+```
+
+```{python}
+sns.set_style('darkgrid')
+plot6 = sns.jointplot(data = df_part3, x='C3 Protein Level (mg/dL)', y='C4 Protein Level (mg/dL)', hue='Admission Status', palette='Set1')
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.95)
+plot6.fig.suptitle('Protein Level, Colored by Hospital Admission Status',y=0.99,size=13)
+
+plot6.savefig('plot-06.png')
+```
+
+```{python}
+sns.set_style('darkgrid')
+
+plot7 = sns.jointplot(y='C4 Protein Level (mg/dL)', x='C3 Protein Level (mg/dL)', data=df_part3, kind='reg', scatter = False)
+
+sns.scatterplot(y='C4 Protein Level (mg/dL)', x='C3 Protein Level (mg/dL)', data=df_part3, hue="Admission Status", ax=plot7.ax_joint, palette='Set1')
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.95)
+plot7.fig.suptitle('Protein Level, Colored by Hospital Admission Status',y=0.99,size=13)
+
+plot7.savefig('plot-07.png')
+
+plt.show()
+```
+
+### Technical Summary
+
+Going part by part, I started with Part 0 of my exploratory data analysis, which aimed to get a better idea of the dataset. I mostly spent this time manually examining subsets of the dataframe in vscode, trying to get an idea of patterns in the data related to the amount of blank values in specific columns. This was before I had finalized my questions that I hoped to answer, as I wanted to see which columns would have the greatest amount of usable data to produce meaningful analysis. I counted the number of 'nan' values in each column, and was able to get a better understanding looking at the individual unit of analysis, which was one row per patient, per laboratory test. If a patient did not undergo any laboratory test, there was only one row in the data for that patient ID. 
+
+Looking at Part 1, the question I hoped to answer was to determine if there was a relationship between the degree of thrombosis and the levels of the various blood components that I knew from my own personal knowledge base. Looking at the correlation matrix as well as the plots in Part 1, we see that the first column, which indicates the degree of thrombosis, has a pearson's correlation coefficient close to 0 for all the other continuous variables that were examined in this portion of the EDA. There are some variables that have a strong positive correlation, such as the relationship between hemoglobin and hematoclit, but that is not largely the purpose of this analysis. Looking at the second correlation plot, which is colored by degree of thrombosis, we similarly do not see major trends between thrombosis degree and any of the other variables. Perhaps this is due to sample size, as a large portion of the patients are graded with thrombosis degree 0. Therefore, it may seem difficult, especially looking at the distribution of degree 0 for each of the continuous variables compared to the other degrees, to get an idea of correlation when there is so much more dispersion for patients of thrombosis degree 0. 
+
+Looking at Part 2, we are similarly trying to find continuous variables that are potentially correlated with the degree of thrombosis. This time, we are exploring the different anti-Cardiolipin antibodies, which are listed in the original tsumoto-b.csv data file. For this portion of the EDA, I decided to use a boxplot, and after initially plotting each antibody with thrombosis degree, I noticed that each antibody had a small number of large outliers that was negatively affecting the visual quality of the boxplots. Therefore, I manually chose a maximum value for each that would be present in the plot to get a better idea of what trends showed up. Removing outliers from all three values at once removed less than 8 percent of the rows that contained a value for thrombosis degree, so I felt that was an adequate subset of the data to reach some meaningful conclusions. Looking at the final copies of each boxplot, we are finally able to notice some trends. Immunoglobin G (Ig G) has a clear correlation with thrombosis degree, as the mean and inner quartile range increase as the degree of thrombosis increases. This trend is not as noticeable with the other two antibodies, although looking at the plot for Ig A, we see that degree 1 thrombosis patients have a far higher average Ig A content, as well as a far higher inner quartile range, compared to the other severity levels for thrombosis. 
+
+Finally, looking at Part 3, I wanted to look at admission status. I filtered out any row that did not have '+' or '-' as the admission status. In this analysis, I wanted to look at two particular proteins that are often studied because they are good indicators for if a particular treatment is working. Therefore, using admission status to separate patients that were either admitted or followed at the outpatient clinic, from the rest of the patients, is a good way to determine if these proteins are indicators for successful treatment. The two plots that can be found in Part 3 are the exact same scatterplots. Unfortunately, seaborn does not allow for regression lines to be put on jointplots that have the 'hue' argument, so I designed two similar plots to get an idea of the effect of hospital admittance. Looking at the regression line, we see that there is not a huge distinction between admission status and its relationship with the linear model. Looking at the dispersions in the first plot, we see that for both proteins, the distribution is more centralized, whereas the rows with no hospital admittance have a slightly larger variance, which makes sense logically, as those patients are not being treated in a hospital, so it is understandable that there are a wider range of possible outcomes. 
+
+Overall, I think that the dataset is good, but there are some documentation issues that I found a little difficult to overcome. I came into this assignment knowing very little about what any of the variables meant, and I found myself doing a lot of research on the units for different measurements, as well as what each variable was measuring, because the documentation did not give me much to go off of. Furthermore, it is near impossible to use some columns, most notably the 'diagnosis' columns. This is due to two main factors. The first is that there are so many possible combinations of diagnoses that can be in that column. The second is because I do not know what any of the abbreviations stand for, since there is no documentation as to which diagnoses are notable for this type of analysis, or which diagnoses are not necessarily important for anaylzing thrombosis. Nevertheless, I was able to do plenty of meaningful exploratory data analysis, which will be discussed further in the 'Results' file. 
+
