@@ -3,7 +3,6 @@
 
 Visual Exploratory Data Analysis and professional report generation
 
-**IMPORTANT:**
 
 * This is a long assignment. Give yourself ample time to complete it. 
 * Data wrangling and EDA can be very  time consuming. 
